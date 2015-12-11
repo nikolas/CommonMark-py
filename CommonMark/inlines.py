@@ -47,7 +47,11 @@ reAutolink = re.compile(
     re.IGNORECASE)
 reSpnl = re.compile(r'^ *(?:\n *)?')
 reWhitespace = re.compile(r'\s+')
+reWhitespaceChar = re.compile(r'^\s')
 reFinalSpace = re.compile(r' *$')
+rePunctuation = re.compile(
+    r'^[\u2000-\u206F\u2E00-\u2E7F\\\'!"#\$%&\(\)\*\+,\-\.\/:'
+    r';<=>\?@\[\]\^_`\{\|\}~]')
 
 # Matches a character with a special meaning in markdown,
 # or a string of non-special characters.
@@ -197,30 +201,56 @@ class InlineParser:
         char_before = char_after = None
         startpos = self.pos
 
-        char_before = '\n' if self.pos == 0 else self.subject[self.pos - 1]
-
-        while (self.peek() == c):
+        if (c == "'" or c == '"'):
             numdelims += 1
             self.pos += 1
+        else:
+            while (self.peek() == c):
+                numdelims += 1
+                self.pos += 1
 
-        a = self.peek()
-        char_after = a if a else "\\n"
+        if numdelims == 0:
+            return {
+                'numdelims': 0,
+                'can_open': False,
+                'can_close': False
+            }
 
-        can_open = (numdelims > 0) and (
-            numdelims <= 3) and (not re.match("\s", char_after))
-        can_close = (numdelims > 0) and (
-            numdelims <= 3) and (not re.match("\s", char_before))
+        char_before = '\n' if startpos == 0 else self.subject[startpos - 1]
 
-        if (c == "_"):
-            can_open = can_open and (
-                not re.match("[a-z0-9]", char_before, re.IGNORECASE))
-            can_close = can_close and (
-                not re.match("[a-z0-9]", char_after, re.IGNORECASE))
+        char_after = self.peek()
+        if char_after is None:
+            char_after = '\n'
+
+        after_is_whitespace = re.match(reWhitespaceChar, char_after)
+        after_is_punctuation = re.match(rePunctuation, char_after)
+        before_is_whitespace = re.match(reWhitespaceChar, char_before)
+        before_is_punctuation = re.match(rePunctuation, char_before)
+
+        left_flanking = not after_is_whitespace and not (
+            after_is_punctuation and (not before_is_whitespace) and
+            (not before_is_punctuation))
+        right_flanking = not before_is_whitespace and not (
+            before_is_punctuation and (not after_is_whitespace) and
+            (not after_is_punctuation))
+
+        if c == '_':
+            can_open = left_flanking and (
+                (not right_flanking) or before_is_punctuation)
+            can_close = right_flanking and (
+                (not left_flanking) or after_is_punctuation)
+        elif c == "'" or c == '"':
+            can_open = left_flanking and (not right_flanking)
+            can_close = right_flanking
+        else:
+            can_open = left_flanking
+            can_close = right_flanking
+
         self.pos = startpos
         return {
-            "numdelims": numdelims,
-            "can_open": can_open,
-            "can_close": can_close
+            'numdelims': numdelims,
+            'can_open': can_open,
+            'can_close': can_close
         }
 
     def parseEmphasis(self, inlines):

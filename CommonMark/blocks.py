@@ -308,7 +308,7 @@ class Parser:
                     "Item", line_number, first_nonspace)
                 container.list_data = data
             elif indent >= CODE_INDENT:
-                if not self.tip.t == "Paragraph" and not blank:
+                if self.tip.t != "Paragraph" and not blank:
                     offset += CODE_INDENT
                     already_done, oldtip = closeUnmatchedBlocks(
                         self, already_done, oldtip)
@@ -360,12 +360,13 @@ class Parser:
                     self, already_done, oldtip)
                 container = self.addChild(
                     "FencedCode", line_number, first_nonspace)
+                container.is_fenced = True
                 container.fence_length = fence_length
                 container.fence_char = FENmatch.group(0)[0]
                 container.fence_offset = first_nonspace - offset
                 offset = first_nonspace + fence_length
                 break
-            elif not matchAt(reHtmlBlockOpen, ln, first_nonspace) is None:
+            elif matchAt(reHtmlBlockOpen, ln, first_nonspace) is not None:
                 already_done, oldtip = closeUnmatchedBlocks(
                     self, already_done, oldtip)
                 container = self.addChild(
@@ -375,7 +376,7 @@ class Parser:
                     len(container.strings) == 1 and PARmatch:
                 already_done, oldtip = closeUnmatchedBlocks(
                     self, already_done, oldtip)
-                container.t = "SetextHeader"
+                container.t = 'SetextHeader'
                 container.level = 1 if PARmatch.group(0)[0] == '=' else 2
                 offset = len(ln)
             elif not matchAt(reHrule, ln, first_nonspace) is None:

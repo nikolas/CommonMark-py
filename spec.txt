@@ -4103,7 +4103,7 @@ However, a string of four or more `****` can never close emphasis:
 .
 *foo****
 .
-<p>*foo****</p>
+<p><em>foo</em>***</p>
 .
 
 Note that there are some asymmetries here:
